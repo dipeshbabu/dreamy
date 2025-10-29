@@ -147,7 +147,6 @@ def dream(c: DreamConfig, model=None, tokenizer=None):
         restart_xentropy=c.restart_xentropy,
         restart_xentropy_max_mult=c.restart_xentropy_max_mult,
         topk=c.topk,
-        attribution_frequency=c.attribution_frequency,
     )
 
     # we can't pickle functions easily, so drop runner_builder before saving
