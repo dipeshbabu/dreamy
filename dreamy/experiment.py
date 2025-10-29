@@ -148,6 +148,7 @@ class DreamConfig:
 
     runner_builder: Callable
     model_size: str = "12b"
+    minimize: bool = True  # Switch on minimization
     x_penalty_min: float = 1.0 / 10.0
     x_penalty_max: float = 10.0
     iters: int = 300
@@ -170,7 +171,6 @@ class DreamConfig:
     gcg: float = (
         None  # sets x_penalty and overrides population_size and explore_per_pop
     )
-    minimize: bool = False  # Switch on minimization
 
 
 def dream(c: DreamConfig, model=None, tokenizer=None):
