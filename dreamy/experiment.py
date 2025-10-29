@@ -56,7 +56,10 @@ params = dict(
     cpu=8,
     memory=64 * 1024,
     # 20, 40, 80 are options
-    gpu=modal.gpu.A100(memory=int(os.environ.get("MODAL_A100_MEMORY", 40))),
+    try:
+        gpu=modal.gpu.A100(memory=int(os.environ.get("MODAL_A100_MEMORY", 40)))
+    except TypeError:
+        gpu=modal.gpu.A100(),
     secrets=[
         modal.Secret.from_name("s3-access"),
         modal.Secret.from_name("huggingface"),
