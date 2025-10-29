@@ -60,8 +60,8 @@ class DreamConfig:
     iters: int = 300
     seq_len: int = 12
     batch_size: int = 256
-    population_size: int = 8
-    explore_per_pop: int = 32
+    population_size: int = 16
+    explore_per_pop: int = 64
 
     # restart heuristics
     restart_frequency: int = 30
