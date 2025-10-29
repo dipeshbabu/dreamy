@@ -13,6 +13,16 @@ import torch.nn.functional as F
 import transformers
 
 
+def combine_score(target, xentropy, X, minimize: bool):
+    """
+    Returns a per-slot (population) score matrix shaped [len(X), num_candidates].
+    We *maximize* this score, regardless of mode. If `minimize=True`, we flip the
+    sign of the feature so smaller `target` is preferred.
+    """
+    feat = -target if minimize else target
+    return feat[None, :] - X[:, None] * xentropy[None, :]
+
+
 def load_tokenizer():
     """Load up a Pythia tokenizer. All the pythia models use the same
     tokenizer."""
@@ -300,7 +310,8 @@ def epo(
                     torch.arange(state.ids.shape[0], device=device).repeat(
                         explore_size // state.ids.shape[0]
                     ),
-                    torch.arange(explore_size % state.ids.shape[0], device=device),
+                    torch.arange(explore_size %
+                                 state.ids.shape[0], device=device),
                 )
             )
             assert source_idx.shape[0] == explore_size
@@ -327,10 +338,15 @@ def epo(
             # note that all_loss is a matrix with a row for each population
             # member because each population member slot uses a different
             # xentropy penalty.
-            all_loss = (
-                -all_state.target[None, :] + X[:, None] * all_state.xentropy[None, :]
-            )
-            keep = (-all_loss).argmax(dim=1).to(torch.int)
+            # all_loss = (
+            #     -all_state.target[None, :] + X[:, None] *
+            #     all_state.xentropy[None, :]
+            # )
+            # keep = (-all_loss).argmax(dim=1).to(torch.int)
+
+            scores = combine_score(all_state.target, all_state.xentropy, X, minimize=getattr(
+                cache_run, "minimize", False))
+            keep = scores.argmax(dim=1).to(torch.int)
 
             if i % restart_frequency == 0:
                 min_mult = 1.0 / restart_xentropy_max_mult
@@ -381,7 +397,8 @@ def epo(
         else:
             raise
 
-    terminate_flag = callback(i, state, time.time() - start, history, final=True)
+    terminate_flag = callback(
+        i, state, time.time() - start, history, final=True)
 
     history._finalize()
 
@@ -534,7 +551,8 @@ class State:
             ids=torch.cat((self.ids, state2.ids), dim=0),
             target=torch.cat((self.target, state2.target), dim=0),
             xentropy=torch.cat((self.xentropy, state2.xentropy), dim=0),
-            final_token=torch.cat((self.final_token, state2.final_token), dim=0),
+            final_token=torch.cat(
+                (self.final_token, state2.final_token), dim=0),
             token_grads=cat_if_not_none(self.token_grads, state2.token_grads),
             extra={
                 k: cat_if_not_none(self.extra[k], state2.extra[k]) for k in self.extra
@@ -576,7 +594,8 @@ def token_grads(
     loss = torch.empty(input_ids.shape[0], device=model.device)
     xentropy = torch.empty(input_ids.shape[0], device=model.device)
     target = torch.empty(input_ids.shape[0], device=model.device)
-    final_token = torch.empty(input_ids.shape[0], device=model.device, dtype=torch.long)
+    final_token = torch.empty(
+        input_ids.shape[0], device=model.device, dtype=torch.long)
     extra = dict()
 
     with torch.enable_grad():
@@ -592,7 +611,8 @@ def token_grads(
             ).to(embed.weight.dtype)
             one_hot.requires_grad = True
 
-            cache = cache_run(inputs_embeds=torch.matmul(one_hot, embed.weight))
+            cache = cache_run(
+                inputs_embeds=torch.matmul(one_hot, embed.weight))
 
             logits_offset = cache["logits"][:, :-1]
             this_xentropy = (
@@ -645,7 +665,8 @@ def evaluate_fitness(
     input_ids: torch.Tensor,
     batch_size: int,
 ):
-    target = torch.empty(input_ids.shape[0], dtype=torch.float, device=input_ids.device)
+    target = torch.empty(
+        input_ids.shape[0], dtype=torch.float, device=input_ids.device)
     xentropy = torch.empty(
         input_ids.shape[0], dtype=torch.float, device=input_ids.device
     )
@@ -657,7 +678,8 @@ def evaluate_fitness(
         imax = min(i + batch_size, input_ids.shape[0])
         mini_batch = cache_run(input_ids=input_ids[i:imax])
         target[i:imax] = mini_batch["target"]
-        xentropy[i:imax] = calc_xentropy(mini_batch["logits"], input_ids[i:imax])
+        xentropy[i:imax] = calc_xentropy(
+            mini_batch["logits"], input_ids[i:imax])
         final_token[i:imax] = mini_batch["logits"][:, -1, :].argmax(dim=-1)
 
         for k in mini_batch:
