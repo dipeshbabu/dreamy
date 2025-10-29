@@ -50,30 +50,75 @@ image = (
     .run_function(download, secrets=[modal.Secret.from_name("huggingface")])
 )
 
-params = dict(
-    retries=1,
-    timeout=60 * 60 * 24,
-    cpu=8,
-    memory=64 * 1024,
-    # 20, 40, 80 are options
+# params = dict(
+#     retries=1,
+#     timeout=60 * 60 * 24,
+#     cpu=8,
+#     memory=64 * 1024,
+#     # 20, 40, 80 are options
+#     try:
+#         gpu=modal.gpu.A100(memory=int(os.environ.get("MODAL_A100_MEMORY", 40)))
+#     except TypeError:
+#         gpu=modal.gpu.A100(),
+#     secrets=[
+#         modal.Secret.from_name("s3-access"),
+#         modal.Secret.from_name("huggingface"),
+#     ],
+#     mounts=[
+#         modal.Mount.from_local_dir(
+#             os.path.dirname(os.path.realpath(__file__)),
+#             remote_path="/root",
+#             condition=lambda fn: fn.endswith(".py"),
+#             recursive=True,
+#         )
+#     ],
+#     concurrency_limit=10,
+# )
+try:
+    import modal
+    MODAL_OK = True
+except Exception:
+    MODAL_OK = False
+
+IS_COLAB = bool(os.environ.get("COLAB_GPU") or os.environ.get("GCP_PROJECT"))
+
+if IS_COLAB or not MODAL_OK:
+    params = dict(
+        retries=1,
+        timeout=60 * 60 * 24,
+        cpu=8,
+        memory=64 * 1024,
+        gpu=None,          # no Modal GPU object on Colab
+        secrets=[],
+        mounts=[],
+        concurrency_limit=1,
+    )
+else:
     try:
-        gpu=modal.gpu.A100(memory=int(os.environ.get("MODAL_A100_MEMORY", 40)))
+        gpu = modal.gpu.A100(memory=int(os.environ.get("MODAL_A100_MEMORY", 40)))
     except TypeError:
-        gpu=modal.gpu.A100(),
-    secrets=[
-        modal.Secret.from_name("s3-access"),
-        modal.Secret.from_name("huggingface"),
-    ],
-    mounts=[
-        modal.Mount.from_local_dir(
-            os.path.dirname(os.path.realpath(__file__)),
-            remote_path="/root",
-            condition=lambda fn: fn.endswith(".py"),
-            recursive=True,
-        )
-    ],
-    concurrency_limit=10,
-)
+        gpu = modal.gpu.A100()  # fallback for older Modal SDKs
+
+    params = dict(
+        retries=1,
+        timeout=60 * 60 * 24,
+        cpu=8,
+        memory=64 * 1024,
+        gpu=gpu,
+        secrets=[
+            modal.Secret.from_name("s3-access"),
+            modal.Secret.from_name("huggingface"),
+        ],
+        mounts=[
+            modal.Mount.from_local_dir(
+                os.path.dirname(os.path.realpath(__file__)),
+                remote_path="/root",
+                condition=lambda fn: fn.endswith(".py"),
+                recursive=True,
+            )
+        ],
+        concurrency_limit=10,
+    )
 
 stub = modal.Stub("dreamy", image=image)
 stub_function = stub.function(**params)
