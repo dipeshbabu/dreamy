@@ -170,6 +170,7 @@ class DreamConfig:
     gcg: float = (
         None  # sets x_penalty and overrides population_size and explore_per_pop
     )
+    minimize: bool = False  # Switch on minimization
 
 
 def dream(c: DreamConfig, model=None, tokenizer=None):
@@ -195,8 +196,10 @@ def dream(c: DreamConfig, model=None, tokenizer=None):
             model.device
         )
 
+    runner = c.runner_builder(model, tokenizer)
+    setattr(runner, "minimize", c.minimize)
     history = epo(
-        c.runner_builder(model, tokenizer),
+        runner,
         model,
         tokenizer,
         initial_ids=c.initial_ids,
