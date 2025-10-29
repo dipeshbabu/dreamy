@@ -1,5 +1,3 @@
-# /content/dreamy/experiment.py
-
 import os
 import dataclasses
 import pickle
