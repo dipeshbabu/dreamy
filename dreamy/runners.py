@@ -35,13 +35,15 @@ def logit_diff_runner(
             if check_retokenization:
                 good = does_retokenize(model, tokenizer, input_ids)
             else:
-                good = torch.ones(input_ids.shape[0], dtype=bool).to(model.device)
+                good = torch.ones(
+                    input_ids.shape[0], dtype=bool).to(model.device)
             input_text = tokenizer.batch_decode(input_ids)
             good &= torch.tensor(
                 [banned_text.lower() not in s.lower() for s in input_text], dtype=bool
             ).to(good.device)
         else:
-            good = torch.ones(inputs_embeds.shape[0], dtype=bool).to(model.device)
+            good = torch.ones(
+                inputs_embeds.shape[0], dtype=bool).to(model.device)
 
         if input_ids is not None:
             output = model(input_ids)
@@ -75,9 +77,11 @@ def neuron_runner(model, tokenizer, layer, neuron, check_retokenization=False):
             if check_retokenization:
                 good = does_retokenize(model, tokenizer, input_ids)
             else:
-                good = torch.ones(input_ids.shape[0], dtype=bool).to(model.device)
+                good = torch.ones(
+                    input_ids.shape[0], dtype=bool).to(model.device)
         else:
-            good = torch.ones(inputs_embeds.shape[0], dtype=bool).to(model.device)
+            good = torch.ones(
+                inputs_embeds.shape[0], dtype=bool).to(model.device)
 
         out = {}
 
@@ -101,15 +105,17 @@ def neuron_runner(model, tokenizer, layer, neuron, check_retokenization=False):
     return run
 
 
-def residual_runner(model, tokenizer, layer, vector, check_retokenization=False):
+def residual_runner(model, tokenizer, layer, vector, check_retokenization=False, minimize=False):
     def run(input_ids=None, inputs_embeds=None):
         if input_ids is not None:
             if check_retokenization:
                 good = does_retokenize(model, tokenizer, input_ids)
             else:
-                good = torch.ones(input_ids.shape[0], dtype=bool).to(model.device)
+                good = torch.ones(
+                    input_ids.shape[0], dtype=bool).to(model.device)
         else:
-            good = torch.ones(inputs_embeds.shape[0], dtype=bool).to(model.device)
+            good = torch.ones(
+                inputs_embeds.shape[0], dtype=bool).to(model.device)
 
         out = {}
 
@@ -134,6 +140,7 @@ def residual_runner(model, tokenizer, layer, vector, check_retokenization=False)
         out["target"][~good] = -torch.finfo(out["target"].dtype).max
         return out
 
+    run.minimize = minimize
     return run
 
 
@@ -156,26 +163,28 @@ def attention_forward(
 
     # [batch, seq_len, (num_heads * 3 * head_size)]
     #   --> [batch, seq_len, num_heads, 3 * head_size]
-    new_qkv_shape = qkv.size()[:-1] + (self.num_attention_heads, 3 * self.head_size)
+    new_qkv_shape = qkv.size()[:-1] + \
+        (self.num_attention_heads, 3 * self.head_size)
     qkv = qkv.view(*new_qkv_shape)
 
     # [batch, seq_len, num_attention_heads, 3 * head_size] --> 3 [batch, num_attention_heads, seq_len, head_size]
     query = qkv[..., : self.head_size].permute(0, 2, 1, 3)
-    key = qkv[..., self.head_size : 2 * self.head_size].permute(0, 2, 1, 3)
-    value = qkv[..., 2 * self.head_size :].permute(0, 2, 1, 3)
+    key = qkv[..., self.head_size: 2 * self.head_size].permute(0, 2, 1, 3)
+    value = qkv[..., 2 * self.head_size:].permute(0, 2, 1, 3)
 
     # Compute rotary embeddings on rotary_ndims
     query_rot = query[..., : self.rotary_ndims]
-    query_pass = query[..., self.rotary_ndims :]
+    query_pass = query[..., self.rotary_ndims:]
     key_rot = key[..., : self.rotary_ndims]
-    key_pass = key[..., self.rotary_ndims :]
+    key_pass = key[..., self.rotary_ndims:]
 
     # Compute token offset for rotary embeddings (when decoding)
     seq_len = key.shape[-2]
     if has_layer_past:
         seq_len += layer_past[0].shape[-2]
     cos, sin = self.rotary_emb(value, seq_len=seq_len)
-    query, key = apply_rotary_pos_emb(query_rot, key_rot, cos, sin, position_ids)
+    query, key = apply_rotary_pos_emb(
+        query_rot, key_rot, cos, sin, position_ids)
     query = torch.cat((query, query_pass), dim=-1)
     key = torch.cat((key, key_pass), dim=-1)
 
@@ -192,10 +201,13 @@ def attention_forward(
     # dynamically increase the causal mask with the key length, if needed.
     if key_length > self.bias.shape[-1]:
         self._init_bias(key_length, device=key.device)
-    causal_mask = self.bias[:, :, key_length - query_length : key_length, :key_length]
+    causal_mask = self.bias[:, :, key_length -
+                            query_length: key_length, :key_length]
 
-    query = query.view(batch_size * num_attention_heads, query_length, attn_head_size)
-    key = key.view(batch_size * num_attention_heads, key_length, attn_head_size)
+    query = query.view(batch_size * num_attention_heads,
+                       query_length, attn_head_size)
+    key = key.view(batch_size * num_attention_heads,
+                   key_length, attn_head_size)
     attn_scores = torch.zeros(
         batch_size * num_attention_heads,
         query_length,
@@ -274,9 +286,11 @@ def attention_entry_runner(
             if check_retokenization:
                 good = does_retokenize(model, tokenizer, input_ids)
             else:
-                good = torch.ones(input_ids.shape[0], dtype=bool).to(model.device)
+                good = torch.ones(
+                    input_ids.shape[0], dtype=bool).to(model.device)
         else:
-            good = torch.ones(inputs_embeds.shape[0], dtype=bool).to(model.device)
+            good = torch.ones(
+                inputs_embeds.shape[0], dtype=bool).to(model.device)
 
         out = {}
 
