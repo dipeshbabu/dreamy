@@ -1,10 +1,6 @@
 """
 Tools for running dreaming experiments on Modal.
 """
-"""
-Tools for running dreaming experiments on Modal (cloud) or locally (Colab/HPC).
-This version is backward compatible with older Modal SDKs and bypasses Modal on Colab.
-"""
 import dataclasses
 import os
 import pickle
