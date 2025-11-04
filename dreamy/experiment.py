@@ -1,110 +1,86 @@
 """
 Tools for running dreaming experiments on Modal.
 """
-import os
-
+"""
+Tools for running dreaming experiments on Modal (cloud) or locally (Colab/HPC).
+This version is backward compatible with older Modal SDKs and bypasses Modal on Colab.
+"""
 import dataclasses
+import os
 import pickle
 from typing import Callable
-
 import torch
+from dreamy.epo import epo, load_model
 import transformers
-import modal
-from dreamy.epo import epo
 
 
-def download(param_str="12b"):
+# --- Modal import + compatibility shim ---
+try:
+    import modal as _modal
+    ModalApp = getattr(_modal, "App", None)    # new name
+    ModalStub = getattr(_modal, "Stub", None)  # old name
+    _MODAL_AVAILABLE = bool(ModalApp or ModalStub)
+except Exception:
+    _modal = None
+    ModalApp = None
+    ModalStub = None
+    _MODAL_AVAILABLE = False
+
+# Treat Colab/local as “no-Modal-at-import-time”
+_IS_LOCAL_LIKE = bool(os.environ.get("COLAB_GPU") or os.environ.get(
+    "GCP_PROJECT") or os.environ.get("RUN_LOCAL", "1") == "1")
+
+
+def download(param_str: str = "12b"):
     model_name = f"EleutherAI/pythia-{param_str}-deduped"
-
-    import transformers
-
     transformers.AutoTokenizer.from_pretrained(
         model_name,
         token=os.environ.get("HUGGINGFACE_TOKEN", None),
     )
-
     transformers.AutoModelForCausalLM.from_pretrained(
         model_name,
-        token=os.environ["HUGGINGFACE_TOKEN"],
+        token=os.environ.get("HUGGINGFACE_TOKEN"),
     )
 
 
-image = (
-    modal.Image.from_registry("pytorch/pytorch:2.1.0-cuda12.1-cudnn8-devel")
-    .pip_install(
-        "numpy",
-        "transformers>=4.34.0",
-        "typer>=0.9",
-        "accelerate",
-        "tqdm",
-        "boto3",
-        "ninja",
-        "packaging",
-        "pandas",
-        "s3fs",
-        "mosaicml-streaming",
-        "datasets",
+# ---- Define Modal image/params only if usable ----
+if _MODAL_AVAILABLE and not _IS_LOCAL_LIKE:
+    modal = _modal
+    image = (
+        modal.Image.from_registry(
+            "pytorch/pytorch:2.1.0-cuda12.1-cudnn8-devel")
+        .pip_install(
+            "numpy",
+            "transformers>=4.34.0",
+            "typer>=0.9",
+            "accelerate",
+            "tqdm",
+            "boto3",
+            "ninja",
+            "packaging",
+            "pandas",
+            "s3fs",
+            "mosaicml-streaming",
+            "datasets",
+        )
+        .apt_install("git", "wget")
+        .run_commands("pip3 install flash-attn --no-build-isolation")
+        .run_function(download, secrets=[modal.Secret.from_name("huggingface")])
     )
-    .apt_install("git", "wget")
-    .run_commands("pip3 install flash-attn --no-build-isolation")
-    .run_function(download, secrets=[modal.Secret.from_name("huggingface")])
-)
 
-# params = dict(
-#     retries=1,
-#     timeout=60 * 60 * 24,
-#     cpu=8,
-#     memory=64 * 1024,
-#     # 20, 40, 80 are options
-#     try:
-#         gpu=modal.gpu.A100(memory=int(os.environ.get("MODAL_A100_MEMORY", 40)))
-#     except TypeError:
-#         gpu=modal.gpu.A100(),
-#     secrets=[
-#         modal.Secret.from_name("s3-access"),
-#         modal.Secret.from_name("huggingface"),
-#     ],
-#     mounts=[
-#         modal.Mount.from_local_dir(
-#             os.path.dirname(os.path.realpath(__file__)),
-#             remote_path="/root",
-#             condition=lambda fn: fn.endswith(".py"),
-#             recursive=True,
-#         )
-#     ],
-#     concurrency_limit=10,
-# )
-try:
-    import modal
-    MODAL_OK = True
-except Exception:
-    MODAL_OK = False
-
-IS_COLAB = bool(os.environ.get("COLAB_GPU") or os.environ.get("GCP_PROJECT"))
-
-if IS_COLAB or not MODAL_OK:
-    params = dict(
-        retries=1,
-        timeout=60 * 60 * 24,
-        cpu=8,
-        memory=64 * 1024,
-        gpu=None,          # no Modal GPU object on Colab
-        secrets=[],
-        mounts=[],
-        concurrency_limit=1,
-    )
-else:
+    # GPU arg compatibility
     try:
-        gpu = modal.gpu.A100(memory=int(os.environ.get("MODAL_A100_MEMORY", 40)))
+        gpu_arg = modal.gpu.A100(memory=int(
+            os.environ.get("MODAL_A100_MEMORY", 40)))
     except TypeError:
-        gpu = modal.gpu.A100()  # fallback for older Modal SDKs
+        gpu_arg = modal.gpu.A100()
 
     params = dict(
         retries=1,
         timeout=60 * 60 * 24,
         cpu=8,
         memory=64 * 1024,
-        gpu=gpu,
+        gpu=gpu_arg,
         secrets=[
             modal.Secret.from_name("s3-access"),
             modal.Secret.from_name("huggingface"),
@@ -120,16 +96,46 @@ else:
         concurrency_limit=10,
     )
 
-stub = modal.Stub("dreamy", image=image)
-stub_function = stub.function(**params)
-stub_cls = stub.cls(**params)
+    if ModalStub is not None:
+        stub = ModalStub("dreamy", image=image)
+        stub_function = stub.function(**params)
+        stub_cls = stub.cls(**params)
+    else:
+        app = ModalApp("dreamy")
+
+        def _no_modal_decorator(*_a, **_k):
+            def wrap(fn):
+                return fn
+            return wrap
+        stub = app
+        stub_function = _no_modal_decorator
+        stub_cls = _no_modal_decorator
+else:
+    modal = None
+    image = None
+    params = dict(
+        retries=1,
+        timeout=60 * 60 * 24,
+        cpu=8,
+        memory=64 * 1024,
+        gpu=None,
+        secrets=[],
+        mounts=[],
+        concurrency_limit=1,
+    )
+
+    def _no_modal_decorator(*_a, **_k):
+        def wrap(fn):
+            return fn
+        return wrap
+    stub_function = _no_modal_decorator
+    stub_cls = _no_modal_decorator
 
 
 def chunk_list(lst, N):
     avg = len(lst) // N
     rem = len(lst) % N
     start = 0
-
     for i in range(N):
         end = start + avg + (i < rem)
         yield lst[start:end]
@@ -144,20 +150,31 @@ class RemoteDream:
     def __enter__(self):
         self.model, self.tokenizer = load_model(model_size=self.model_size)
 
-    @modal.method()
-    def _dream(self, cfgs):
-        output = []
-        for c in cfgs:
-            assert c.model_size == self.model_size
-            output.append(dream(c, model=self.model, tokenizer=self.tokenizer))
-        return output
+    # Guard modal.method for local runs
+    if _MODAL_AVAILABLE and not _IS_LOCAL_LIKE and hasattr(_modal, "method"):
+        @_modal.method()
+        def _dream(self, cfgs):
+            output = []
+            for c in cfgs:
+                assert c.model_size == self.model_size
+                output.append(dream(c, model=self.model,
+                              tokenizer=self.tokenizer))
+            return output
+    else:
+        def _dream(self, cfgs):
+            output = []
+            for c in cfgs:
+                assert c.model_size == self.model_size
+                output.append(dream(c, model=self.model,
+                              tokenizer=self.tokenizer))
+            return output
 
     def dream(self, cfgs, n_workers=None, local=False):
         if n_workers is None:
             n_workers = min(10, len(cfgs))
         chunks = list(chunk_list(cfgs, n_workers))
-        if local:
-            return list(map(self._dream.local, chunks))
+        if local or (not _MODAL_AVAILABLE) or _IS_LOCAL_LIKE:
+            return list(map(self._dream, chunks))
         else:
             return list(self._dream.map(chunks, return_exceptions=True))
 
@@ -165,7 +182,6 @@ class RemoteDream:
 def retrieve_files(cfgs):
     for c in cfgs:
         import s3fs
-
         fs = s3fs.S3FileSystem()
         s3_full_path = os.path.join(c.s3_bucket, c.s3_path)
         print("downloading", s3_full_path, "to", c.output_path)
@@ -177,23 +193,18 @@ def retrieve_files(cfgs):
 
 def check_file_exists(s3, bucket, key):
     from botocore.exceptions import ClientError
-
     try:
         s3.head_object(Bucket=bucket, Key=key)
         return True
     except ClientError as e:
-        # If a client error is thrown, check if it was a 404 error (file not found)
         if e.response["Error"]["Code"] == "404":
             return False
         else:
-            # Re-raise the exception if it was a different kind of client error.
             raise
 
 
 @dataclasses.dataclass
 class DreamConfig:
-    """ """
-
     runner_builder: Callable
     model_size: str = "12b"
     x_penalty_min: float = 1.0 / 10.0
@@ -209,21 +220,19 @@ class DreamConfig:
     initial_ids: torch.Tensor = None
     initial_str: str = ""  # overrides initial_ids
     topk: int = 512
-    attribution_frequency: int = None
     output_path: str = ""
     s3_bucket: str = "caiplay"
     s3_path: str = ""
     seed: int = 0
     payload: dict = None
-    gcg: float = (
-        None  # sets x_penalty and overrides population_size and explore_per_pop
-    )
+    # sets x_penalty and overrides population_size and explore_per_pop
+    gcg: float | None = None
+    minimize: bool = False     # NEW: enable targeted activation minimization
 
 
 def dream(c: DreamConfig, model=None, tokenizer=None):
     if len(c.s3_path) > 0:
         import boto3
-
         s3 = boto3.client("s3")
         if check_file_exists(s3, c.s3_bucket, c.s3_path):
             print("run already done, skipping", c.s3_path)
@@ -239,12 +248,12 @@ def dream(c: DreamConfig, model=None, tokenizer=None):
         c.x_penalty_max = c.gcg
 
     if len(c.initial_str) > 0:
-        c.initial_ids = tokenizer.encode(c.initial_str, return_tensors="pt").to(
-            model.device
-        )
-        
+        c.initial_ids = tokenizer.encode(
+            c.initial_str, return_tensors="pt").to(model.device)
+
     runner = c.runner_builder(model, tokenizer)
     setattr(runner, "minimize", c.minimize)
+
     history = epo(
         runner,
         model,
@@ -267,6 +276,7 @@ def dream(c: DreamConfig, model=None, tokenizer=None):
     # can't pickle the runner_builder (could use cloudpickle)
     c.runner_builder = None
     output = (c, history)
+
     if len(c.output_path) > 0:
         folder_path = os.path.dirname(c.output_path)
         os.makedirs(folder_path, exist_ok=True)
@@ -275,7 +285,7 @@ def dream(c: DreamConfig, model=None, tokenizer=None):
 
     if len(c.s3_path) > 0:
         import boto3
-
         s3 = boto3.resource("s3")
         s3.Bucket(c.s3_bucket).upload_file(c.output_path, c.s3_path)
+
     return output
