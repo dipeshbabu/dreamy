@@ -353,7 +353,9 @@ def epo(
                 max_mult = restart_xentropy_max_mult
                 mult = min_mult + (max_mult - min_mult) * torch.rand(1).item()
                 restart_X = restart_xentropy * mult
-                restart_loss = -all_state.target + restart_xentropy * all_state.xentropy
+                minimize = getattr(cache_run, "minimize", False)
+                s = 1.0 if minimize else -1.0
+                restart_loss = s * all_state.target + restart_xentropy * all_state.xentropy
                 print(f"restarting with xentropy penalty of {restart_X:.2f}")
                 keep[:] = restart_loss.argmin()
 
@@ -464,8 +466,9 @@ def build_pareto_frontier(tokenizer, histories, Xvs=None):
     pareto_t = np.empty(Xvs.shape[0])
     pareto_x = np.empty(Xvs.shape[0])
     pareto_idxs = []
+    s = 1.0 if minimize else -1.0
     for i, Xv in enumerate(Xvs):
-        loss = -history_t + Xv * history_x
+        loss = s * history_t + Xv * history_x
         idx = loss.argmin()
         pareto_idxs.append(idx)
         pareto_t[i] = history_t[idx]
@@ -621,7 +624,9 @@ def token_grads(
                 .mean(dim=-1)
             )
 
-            this_loss = -cache["target"] + this_xentropy * x_penalty[i:imax]
+            minimize = getattr(cache_run, "minimize", False)
+            s = 1.0 if minimize else -1.0
+            this_loss = s * cache["target"] + this_xentropy * x_penalty[i:imax]
             this_loss.sum().backward()
 
             loss[i:imax] = this_loss
@@ -755,7 +760,9 @@ def pareto_callback(cache_run, model, tokenizer, x_penalty_min, x_penalty_max):
                 np.log(x_penalty_min / 10.0), np.log(x_penalty_max * 10.0), 200
             )
         ).to(model.device)
-        loss = -state.target[None] + Xvs[:, None] * state.xentropy[None]
+        minimize = getattr(cache_run, "minimize", False)
+        s = 1.0 if minimize else -1.0
+        loss = s * state.target[None] + Xvs[:, None] * state.xentropy[None]
         idxs = loss.argmin(dim=1)
         for i in range(len(Xvs)):
             idx = idxs[i]
