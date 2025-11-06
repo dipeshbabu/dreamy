@@ -203,6 +203,7 @@ def check_file_exists(s3, bucket, key):
 class DreamConfig:
     runner_builder: Callable
     model_size: str = "12b"
+    minimize: bool = False     # enable targeted activation minimization
     x_penalty_min: float = 1.0 / 10.0
     x_penalty_max: float = 10.0
     iters: int = 300
@@ -223,7 +224,6 @@ class DreamConfig:
     payload: dict = None
     # sets x_penalty and overrides population_size and explore_per_pop
     gcg: float | None = None
-    minimize: bool = False     # NEW: enable targeted activation minimization
 
 
 def dream(c: DreamConfig, model=None, tokenizer=None):
@@ -248,7 +248,7 @@ def dream(c: DreamConfig, model=None, tokenizer=None):
             c.initial_str, return_tensors="pt").to(model.device)
 
     runner = c.runner_builder(model, tokenizer)
-    setattr(runner, "minimize", c.minimize)
+    setattr(runner, "minimize", bool(c.minimize))
 
     history = epo(
         runner,
