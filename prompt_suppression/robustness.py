@@ -6,8 +6,8 @@ from typing import Callable, Iterable
 
 import numpy as np
 
-from dreamy.benchmarks import score_texts
-from dreamy.results import CandidateRecord
+from prompt_suppression.benchmarks import score_texts
+from prompt_suppression.results import CandidateRecord
 
 
 def deterministic_variants(text: str) -> list[tuple[str, str]]:

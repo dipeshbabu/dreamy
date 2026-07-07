@@ -160,7 +160,7 @@ def viz(
 
 @torch.no_grad()
 def resample(model, cache_run: Callable, input_ids, k=range(64), batch_size=256):
-    from dreamy.epo import token_grads
+    from prompt_suppression.epo import token_grads
 
     if len(input_ids.shape) > 1:
         raise ValueError("input_ids must be a 1D tensor of token IDs")

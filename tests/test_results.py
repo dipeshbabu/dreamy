@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from dreamy.results import (
+from prompt_suppression.results import (
     CandidateRecord,
     best_target_at_fluent,
     pareto_frontier,

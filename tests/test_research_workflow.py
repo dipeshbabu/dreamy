@@ -5,11 +5,11 @@ from pathlib import Path
 
 import numpy as np
 
-from dreamy.directions import mean_difference_direction, projection_gap, top_direction_specs
-from dreamy.latex import rows_to_latex_table
-from dreamy.results import CandidateRecord
-from dreamy.robustness import robustness_summary_rows
-from dreamy.target_generation import logit_specs, neuron_specs, parse_int_list, write_spec
+from prompt_suppression.directions import mean_difference_direction, projection_gap, top_direction_specs
+from prompt_suppression.latex import rows_to_latex_table
+from prompt_suppression.results import CandidateRecord
+from prompt_suppression.robustness import robustness_summary_rows
+from prompt_suppression.target_generation import logit_specs, neuron_specs, parse_int_list, write_spec
 
 
 class ResearchWorkflowTests(unittest.TestCase):

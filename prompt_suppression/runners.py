@@ -3,8 +3,8 @@ from typing import Optional, Tuple
 import torch
 from transformers.models.gpt_neox.modeling_gpt_neox import apply_rotary_pos_emb
 
-from dreamy.epo import add_fwd_hooks
-from dreamy.model_utils import get_attention_module, get_layers, get_mlp_output_projection
+from prompt_suppression.epo import add_fwd_hooks
+from prompt_suppression.model_utils import get_attention_module, get_layers, get_mlp_output_projection
 
 
 def _invalid_target_like(target, runner):

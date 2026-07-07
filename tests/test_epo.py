@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 import torch
 
-from dreamy.epo import History, build_pareto_frontier, combine_score
+from prompt_suppression.epo import History, build_pareto_frontier, combine_score
 
 
 class DummyTokenizer:

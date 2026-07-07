@@ -8,7 +8,7 @@ from typing import Any
 import numpy as np
 import torch
 
-from dreamy.runners import logit_diff_runner, neuron_runner, residual_runner
+from prompt_suppression.runners import logit_diff_runner, neuron_runner, residual_runner
 
 
 def token_id_from_text(tokenizer, text: str) -> int:

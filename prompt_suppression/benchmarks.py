@@ -7,8 +7,8 @@ from typing import Callable, Sequence
 
 import torch
 
-from dreamy.epo import History, epo, evaluate_fitness, gcg
-from dreamy.results import CandidateRecord
+from prompt_suppression.epo import History, epo, evaluate_fitness, gcg
+from prompt_suppression.results import CandidateRecord
 
 
 def _decode(tokenizer, ids) -> str:

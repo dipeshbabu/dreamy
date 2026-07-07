@@ -7,7 +7,7 @@ from typing import Sequence
 
 import matplotlib.pyplot as plt
 
-from dreamy.results import CandidateRecord, pareto_frontier, summarize_by_method
+from prompt_suppression.results import CandidateRecord, pareto_frontier, summarize_by_method
 
 
 def plot_scatter(

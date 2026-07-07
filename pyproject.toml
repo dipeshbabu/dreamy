@@ -1,5 +1,5 @@
 [project]
-name = "dreamy"
+name = "prompt-suppression-geometry"
 version = "0.0.1"
 description = "Gradient-guided prompt optimization utilities for language-model targets."
 readme = "README.md"
@@ -18,7 +18,7 @@ dependencies = [
 ]
 
 [project.scripts]
-dreamy = "dreamy.cli:main"
+prompt-suppression = "prompt_suppression.cli:main"
 
 [project.optional-dependencies]
 remote = [
@@ -33,4 +33,4 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["dreamy*"]
+include = ["prompt_suppression*"]

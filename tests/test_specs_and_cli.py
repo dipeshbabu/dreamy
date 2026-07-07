@@ -1,8 +1,8 @@
 import unittest
 
-from dreamy.cli import build_parser
-from dreamy.robustness import deterministic_variants
-from dreamy.target_specs import token_id_from_text
+from prompt_suppression.cli import build_parser
+from prompt_suppression.robustness import deterministic_variants
+from prompt_suppression.target_specs import token_id_from_text
 
 
 class DummyTokenizer:

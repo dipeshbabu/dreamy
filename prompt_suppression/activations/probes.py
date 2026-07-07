@@ -2,7 +2,7 @@ import torch
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 
-from dreamy.model_utils import get_layers
+from prompt_suppression.model_utils import get_layers
 
 
 @torch.no_grad()

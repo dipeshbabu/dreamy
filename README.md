@@ -1,4 +1,4 @@
-# Dreamy
+# Prompt Suppression Geometry
 
 Utilities for gradient-guided prompt optimization against language-model
 targets. This repository contains an EPO-style optimizer, target runners for
@@ -7,17 +7,17 @@ for attribution and remote experiment execution.
 
 ## Repository Contents
 
-- `dreamy.epo`: evolutionary prompt optimization and Pareto-frontier utilities.
-- `dreamy.runners`: target builders for logits, MLP neurons, residual directions,
+- `prompt_suppression.epo`: evolutionary prompt optimization and Pareto-frontier utilities.
+- `prompt_suppression.runners`: target builders for logits, MLP neurons, residual directions,
   and attention entries.
-- `dreamy.benchmarks`: EPO, GCG, random, and natural text scan baselines.
-- `dreamy.results`: candidate records, operating point summaries, and CSV IO.
-- `dreamy.robustness`: deterministic prompt variant checks.
-- `dreamy.plotting`: standard scatter, Pareto, bar, and robustness figures.
-- `dreamy.behavior`: continuation log probability scoring for behavioral tests.
-- `dreamy.activations`: helpers for fitting residual-stream directions.
-- `dreamy.attribution`: token-resampling utilities for local attribution views.
-- `dreamy.experiment`: optional Modal/S3 experiment orchestration helpers.
+- `prompt_suppression.benchmarks`: EPO, GCG, random, and natural text scan baselines.
+- `prompt_suppression.results`: candidate records, operating point summaries, and CSV IO.
+- `prompt_suppression.robustness`: deterministic prompt variant checks.
+- `prompt_suppression.plotting`: standard scatter, Pareto, bar, and robustness figures.
+- `prompt_suppression.behavior`: continuation log probability scoring for behavioral tests.
+- `prompt_suppression.activations`: helpers for fitting residual-stream directions.
+- `prompt_suppression.attribution`: token-resampling utilities for local attribution views.
+- `prompt_suppression.experiment`: optional Modal/S3 experiment orchestration helpers.
 
 ## Basic Usage
 
@@ -28,8 +28,8 @@ uv sync
 ```
 
 ```python
-from dreamy.epo import epo, load_model
-from dreamy.runners import logit_diff_runner
+from prompt_suppression.epo import epo, load_model
+from prompt_suppression.runners import logit_diff_runner
 
 model, tokenizer = load_model(model_size="70m")
 token_id = tokenizer.encode(" dog", add_special_tokens=False)[0]
@@ -58,7 +58,7 @@ model, tokenizer = load_model(model_name="microsoft/phi-2")
 Run a suppression experiment from a JSON target spec:
 
 ```bash
-uv run dreamy run \
+uv run prompt-suppression run \
   --spec examples/logit_spec.json \
   --texts examples/text_pool.txt \
   --out runs/example \
@@ -74,7 +74,7 @@ The command writes:
 Generate standard figures:
 
 ```bash
-uv run dreamy plot \
+uv run prompt-suppression plot \
   --records runs/example/candidates.csv \
   --out-dir runs/example/figures
 ```
@@ -82,7 +82,7 @@ uv run dreamy plot \
 Evaluate deterministic robustness variants for the best prompts:
 
 ```bash
-uv run dreamy robustness \
+uv run prompt-suppression robustness \
   --spec examples/logit_spec.json \
   --records runs/example/candidates.csv \
   --out runs/example/robustness.csv \
@@ -93,7 +93,7 @@ uv run dreamy robustness \
 Score continuation preferences for behavioral checks:
 
 ```bash
-uv run dreamy behavior \
+uv run prompt-suppression behavior \
   --evals examples/behavior_evals.json \
   --out runs/example/behavior.csv
 ```
@@ -101,7 +101,7 @@ uv run dreamy behavior \
 Generate target specs:
 
 ```bash
-uv run dreamy generate-targets \
+uv run prompt-suppression generate-targets \
   --out runs/specs/logits_and_neurons.json \
   --tokens " dog" " answer" \
   --layers 8-10 \
@@ -112,7 +112,7 @@ uv run dreamy generate-targets \
 Fit residual directions across layers and write a residual target spec:
 
 ```bash
-uv run dreamy fit-directions \
+uv run prompt-suppression fit-directions \
   --contrast examples/contrast_pairs.json \
   --layers 0-6 \
   --out-dir runs/directions \
@@ -123,7 +123,7 @@ uv run dreamy fit-directions \
 Export a paper table from a summary CSV:
 
 ```bash
-uv run dreamy latex-table \
+uv run prompt-suppression latex-table \
   --csv runs/example/summary.csv \
   --out runs/example/summary_table.tex \
   --columns target_name,method,best_target,best_target_xentropy
@@ -132,7 +132,7 @@ uv run dreamy latex-table \
 Write starter behavioral evaluation templates:
 
 ```bash
-uv run dreamy behavior-templates --out runs/specs/behavior_evals.json
+uv run prompt-suppression behavior-templates --out runs/specs/behavior_evals.json
 ```
 
 For CPU only smoke runs, add:

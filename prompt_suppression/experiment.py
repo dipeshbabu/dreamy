@@ -6,7 +6,7 @@ import os
 import pickle
 from typing import Callable, Optional
 import torch
-from dreamy.epo import epo, load_model
+from prompt_suppression.epo import epo, load_model
 import transformers
 
 
@@ -93,11 +93,11 @@ if _MODAL_AVAILABLE and not _IS_LOCAL_LIKE:
     )
 
     if ModalStub is not None:
-        stub = ModalStub("dreamy", image=image)
+        stub = ModalStub("prompt-suppression", image=image)
         stub_function = stub.function(**params)
         stub_cls = stub.cls(**params)
     else:
-        app = ModalApp("dreamy")
+        app = ModalApp("prompt-suppression")
 
         def _no_modal_decorator(*_a, **_k):
             def wrap(fn):

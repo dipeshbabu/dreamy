@@ -8,33 +8,33 @@ from pathlib import Path
 
 import torch
 
-from dreamy.behavior import (
+from prompt_suppression.behavior import (
     load_behavior_evals,
     score_continuations,
     write_behavior_rows,
     write_behavior_templates,
 )
-from dreamy.benchmarks import (
+from prompt_suppression.benchmarks import (
     epo_suppression_run,
     gcg_suppression_run,
     minscan_baseline,
     random_search_baseline,
     random_token_baseline,
 )
-from dreamy.directions import fit_direction_sweep, top_direction_specs
-from dreamy.epo import load_model
-from dreamy.latex import rows_from_csv, rows_to_latex_table
-from dreamy.plotting import plot_method_bars, plot_scatter
-from dreamy.results import records_from_csv, records_to_csv, rows_to_csv, summarize_by_method
-from dreamy.robustness import evaluate_robustness, robustness_rows, robustness_summary_rows
-from dreamy.target_generation import (
+from prompt_suppression.directions import fit_direction_sweep, top_direction_specs
+from prompt_suppression.epo import load_model
+from prompt_suppression.latex import rows_from_csv, rows_to_latex_table
+from prompt_suppression.plotting import plot_method_bars, plot_scatter
+from prompt_suppression.results import records_from_csv, records_to_csv, rows_to_csv, summarize_by_method
+from prompt_suppression.robustness import evaluate_robustness, robustness_rows, robustness_summary_rows
+from prompt_suppression.target_generation import (
     logit_specs,
     neuron_specs,
     parse_int_list,
     residual_specs,
     write_spec,
 )
-from dreamy.target_specs import build_runner_from_spec, target_name
+from prompt_suppression.target_specs import build_runner_from_spec, target_name
 
 
 def _load_json(path: str | Path) -> dict:
@@ -328,7 +328,7 @@ def behavior_templates(args) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="dreamy")
+    parser = argparse.ArgumentParser(prog="prompt-suppression")
     sub = parser.add_subparsers(dest="command", required=True)
 
     run = sub.add_parser("run", help="run suppression experiments from a JSON spec")

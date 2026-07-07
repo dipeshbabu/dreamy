@@ -10,7 +10,7 @@ from typing import Sequence
 import numpy as np
 import torch
 
-from dreamy.activations.probes import collect_residual_states
+from prompt_suppression.activations.probes import collect_residual_states
 
 
 def load_contrast_pairs(path: str | Path) -> tuple[list[str], list[str]]:
