@@ -66,7 +66,24 @@ model, tokenizer = load_model(
 ## Reproducible experiment workflow
 
 For the full paper experiment sequence, use [docs/experiments.md](docs/experiments.md).
+For benchmark source notes, use [docs/frontier_data.md](docs/frontier_data.md).
 The commands below are minimal examples to check the workflow.
+
+Paper runs should not use the tiny files in `examples/`. Build local frontier
+benchmark prompt data first:
+
+```bash
+uv sync --extra remote
+uv run prompt-suppression build-frontier-data \
+  --out-dir data/frontier \
+  --sources mmlu_pro math500 gpqa_diamond hle \
+  --allow-gated \
+  --max-items-per-source 500
+```
+
+`gpqa_diamond` and `hle` require accepting the dataset terms on Hugging Face.
+The generated `data/` directory is ignored because some benchmark providers ask
+users not to redistribute examples.
 
 Run a suppression experiment from a JSON target spec:
 

@@ -8,6 +8,7 @@ import torch
 
 from prompt_suppression.activations.probes import _to_numpy_float32
 from prompt_suppression.directions import mean_difference_direction, projection_gap, top_direction_specs
+from prompt_suppression.frontier_data import frontier_question_from_row, write_frontier_bundle
 from prompt_suppression.latex import rows_to_latex_table
 from prompt_suppression.results import CandidateRecord
 from prompt_suppression.robustness import robustness_summary_rows
@@ -87,6 +88,27 @@ class ResearchWorkflowTests(unittest.TestCase):
 
         self.assertIn("\\begin{table}", text)
         self.assertIn("epo", text)
+
+    def test_frontier_data_bundle_writes_expected_files(self):
+        item = frontier_question_from_row(
+            "mmlu_pro",
+            {
+                "question": "Which option is correct?",
+                "options": ["first", "second"],
+                "answer": "A",
+                "category": "logic",
+            },
+        )
+        self.assertIsNotNone(item)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest = write_frontier_bundle([item], tmp, train_fraction=1.0)
+            out = Path(tmp)
+
+            self.assertEqual(manifest["n_total"], 1)
+            self.assertTrue((out / "text_pools" / "frontier_train.txt").exists())
+            self.assertTrue((out / "contrasts" / "eval_awareness_train.json").exists())
+            self.assertTrue((out / "behavior" / "frontier_behavior.json").exists())
 
 
 if __name__ == "__main__":

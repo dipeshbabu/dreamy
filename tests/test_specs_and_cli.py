@@ -35,6 +35,22 @@ class SpecAndCliTests(unittest.TestCase):
         self.assertEqual(args.command, "run")
         self.assertEqual(args.methods, ["random"])
 
+    def test_cli_parser_accepts_frontier_data_command(self):
+        parser = build_parser()
+        args = parser.parse_args(
+            [
+                "build-frontier-data",
+                "--out-dir",
+                "data/frontier",
+                "--sources",
+                "mmlu_pro",
+                "math500",
+            ]
+        )
+
+        self.assertEqual(args.command, "build-frontier-data")
+        self.assertEqual(args.sources, ["mmlu_pro", "math500"])
+
 
 if __name__ == "__main__":
     unittest.main()

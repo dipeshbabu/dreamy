@@ -23,6 +23,7 @@ from prompt_suppression.benchmarks import (
 )
 from prompt_suppression.directions import fit_direction_sweep, top_direction_specs
 from prompt_suppression.epo import load_model
+from prompt_suppression.frontier_data import SOURCE_SPECS, build_frontier_data
 from prompt_suppression.latex import rows_from_csv, rows_to_latex_table
 from prompt_suppression.plotting import plot_method_bars, plot_scatter
 from prompt_suppression.results import records_from_csv, records_to_csv, rows_to_csv, summarize_by_method
@@ -331,6 +332,19 @@ def behavior_templates(args) -> None:
     write_behavior_templates(args.out)
 
 
+def frontier_data(args) -> None:
+    manifest = build_frontier_data(
+        args.sources,
+        args.out_dir,
+        max_items_per_source=args.max_items_per_source,
+        train_fraction=args.train_fraction,
+        seed=args.seed,
+        behavior_limit=args.behavior_limit,
+        allow_gated=args.allow_gated,
+    )
+    print(json.dumps(manifest, indent=2))
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="prompt-suppression")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -462,6 +476,28 @@ def build_parser() -> argparse.ArgumentParser:
     beh_tpl = sub.add_parser("behavior-templates", help="write starter behavioral eval templates")
     beh_tpl.add_argument("--out", required=True)
     beh_tpl.set_defaults(func=behavior_templates)
+
+    frontier = sub.add_parser(
+        "build-frontier-data",
+        help="build local prompt pools and contrast pairs from frontier benchmark datasets",
+    )
+    frontier.add_argument("--out-dir", default="data/frontier")
+    frontier.add_argument(
+        "--sources",
+        nargs="+",
+        choices=sorted(SOURCE_SPECS),
+        default=["mmlu_pro", "math500"],
+    )
+    frontier.add_argument("--max-items-per-source", type=int, default=500)
+    frontier.add_argument("--train-fraction", type=float, default=0.75)
+    frontier.add_argument("--behavior-limit", type=int, default=300)
+    frontier.add_argument("--seed", type=int, default=0)
+    frontier.add_argument(
+        "--allow-gated",
+        action="store_true",
+        help="allow gated sources after accepting their Hugging Face terms",
+    )
+    frontier.set_defaults(func=frontier_data)
     return parser
 
 
