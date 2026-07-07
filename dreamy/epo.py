@@ -23,24 +23,36 @@ def combine_score(target, xentropy, X, minimize: bool):
     return feat[None, :] - X[:, None] * xentropy[None, :]
 
 
-def load_tokenizer():
-    """Load up a Pythia tokenizer. All the pythia models use the same
-    tokenizer."""
-    return transformers.AutoTokenizer.from_pretrained("EleutherAI/pythia-70m-deduped")
+def load_tokenizer(model_name="EleutherAI/pythia-70m-deduped"):
+    """Load the tokenizer used for prompt optimization."""
+    return transformers.AutoTokenizer.from_pretrained(model_name)
 
 
 def load_model(
-    model_size="12b", requires_grad=False, attn_implementation="flash_attention_2"
+    model_size="12b",
+    model_name=None,
+    tokenizer_name=None,
+    requires_grad=False,
+    attn_implementation="flash_attention_2",
 ):
-    """Load up a Pythia model ready for dreaming."""
-    model_name = f"EleutherAI/pythia-{model_size}-deduped"
-    model = transformers.GPTNeoXForCausalLM.from_pretrained(
-        model_name,
+    """Load a causal LM ready for EPO.
+
+    By default this preserves the original Pythia setup. Pass `model_name`
+    explicitly for other Hugging Face causal LMs such as `microsoft/phi-2`.
+    """
+    model_name = model_name or f"EleutherAI/pythia-{model_size}-deduped"
+    model_kwargs = dict(
         low_cpu_mem_usage=True,
         torch_dtype=torch.float16,
         use_cache=False,
         device_map="cuda",
-        attn_implementation=attn_implementation,
+    )
+    if attn_implementation is not None:
+        model_kwargs["attn_implementation"] = attn_implementation
+
+    model = transformers.AutoModelForCausalLM.from_pretrained(
+        model_name,
+        **model_kwargs,
     )
 
     if not requires_grad:
@@ -50,7 +62,7 @@ def load_model(
         for name, param in model.named_parameters():
             param.requires_grad_(False)
 
-    tokenizer = load_tokenizer()
+    tokenizer = load_tokenizer(tokenizer_name or model_name)
     return model, tokenizer
 
 
@@ -210,11 +222,8 @@ def epo(
     Raises
     ------
     ValueError
-        _description_
-    ValueError
-        _description_
-    ValueError
-        _description_
+        If mutually exclusive inputs are provided, the initial prompt length is
+        wrong, or an unknown mutation method is requested.
     """
     start = time.time()
     explore_size = population_size * explore_per_pop
@@ -355,7 +364,7 @@ def epo(
                 restart_X = restart_xentropy * mult
                 minimize = getattr(cache_run, "minimize", False)
                 s = 1.0 if minimize else -1.0
-                restart_loss = s * all_state.target + restart_xentropy * all_state.xentropy
+                restart_loss = s * all_state.target + restart_X * all_state.xentropy
                 print(f"restarting with xentropy penalty of {restart_X:.2f}")
                 keep[:] = restart_loss.argmin()
 
@@ -425,7 +434,7 @@ class ParetoFrontier:
     text: List[str]
 
 
-def build_pareto_frontier(tokenizer, histories, Xvs=None):
+def build_pareto_frontier(tokenizer, histories, Xvs=None, minimize=False):
     """
     Construct a pareto frontier from the history of several EPO runs. We allow
     multiple histories to be passed so that we can construct the Pareto
@@ -441,6 +450,8 @@ def build_pareto_frontier(tokenizer, histories, Xvs=None):
     Xvs, optional
         The range of cross-entropy penalties to use.
         By default Xvs = 1.0 / np.linspace(0, 50, 1000)[1:]
+    minimize, optional
+        If True, lower target values are preferred on the frontier.
 
     Returns
     -------
@@ -506,7 +517,7 @@ def gcg(
     always_recompute_gradients: bool = False,
 ):
     """GCG is a special case of EPO where the population size is 1."""
-    epo(
+    return epo(
         cache_run,
         model,
         tokenizer,

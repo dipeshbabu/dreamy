@@ -4,7 +4,7 @@ Tools for running dreaming experiments on Modal.
 import dataclasses
 import os
 import pickle
-from typing import Callable
+from typing import Callable, Optional
 import torch
 from dreamy.epo import epo, load_model
 import transformers
@@ -145,6 +145,12 @@ class RemoteDream:
 
     def __enter__(self):
         self.model, self.tokenizer = load_model(model_size=self.model_size)
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        self.model = None
+        self.tokenizer = None
+        return False
 
     # Guard modal.method for local runs
     if _MODAL_AVAILABLE and not _IS_LOCAL_LIKE and hasattr(_modal, "method"):
@@ -170,9 +176,10 @@ class RemoteDream:
             n_workers = min(10, len(cfgs))
         chunks = list(chunk_list(cfgs, n_workers))
         if local or (not _MODAL_AVAILABLE) or _IS_LOCAL_LIKE:
-            return list(map(self._dream, chunks))
+            results = list(map(self._dream, chunks))
         else:
-            return list(self._dream.map(chunks, return_exceptions=True))
+            results = list(self._dream.map(chunks, return_exceptions=True))
+        return [item for chunk in results for item in chunk]
 
 
 def retrieve_files(cfgs):
@@ -223,7 +230,7 @@ class DreamConfig:
     seed: int = 0
     payload: dict = None
     # sets x_penalty and overrides population_size and explore_per_pop
-    gcg: float | None = None
+    gcg: Optional[float] = None
 
 
 def dream(c: DreamConfig, model=None, tokenizer=None):

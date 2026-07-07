@@ -1,0 +1,13 @@
+paper/
+paper.pdf
+poster.pdf
+
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+.venv/
+venv/
+*.egg-info/

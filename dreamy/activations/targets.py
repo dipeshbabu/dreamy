@@ -4,5 +4,5 @@ import torch
 
 @dataclass
 class DirectionSpec:
-    layer: int    # which gpt_neox layer index
+    layer: int    # transformer block index
     v: torch.Tensor    # [d_model], unit norm direction vector (same dtype/device as model)

@@ -1,16 +1,15 @@
-"""
-_summary_
-
-Returns
--------
-    _description_
-"""
 from typing import Optional, Tuple
 
 import torch
 from transformers.models.gpt_neox.modeling_gpt_neox import apply_rotary_pos_emb
 
 from dreamy.epo import add_fwd_hooks
+from dreamy.model_utils import get_attention_module, get_layers, get_mlp_output_projection
+
+
+def _invalid_target_like(target, runner):
+    sign = 1.0 if getattr(runner, "minimize", False) else -1.0
+    return sign * torch.finfo(target.dtype).max
 
 
 def does_retokenize(model, tokenizer, input_ids):
@@ -52,6 +51,7 @@ def logit_diff_runner(
 
         out = dict()
         out["logits"] = output.logits
+        invalid = _invalid_target_like(output.logits[:, -1, token_id], run)
         out["target"] = torch.where(
             good,
             output.logits[:, -1, token_id]
@@ -60,7 +60,7 @@ def logit_diff_runner(
                 output.logits[:, -1].topk(dim=-1, k=2).values[:, 1],
                 output.logits[:, -1].max(dim=-1).values,
             ),
-            -torch.finfo(output.logits.dtype).max,
+            invalid,
         )
         # probs = torch.log_softmax(last_logits, -1, :], dim=-1)
         # out["target"] = torch.where(
@@ -88,8 +88,9 @@ def neuron_runner(model, tokenizer, layer, neuron, check_retokenization=False):
         def get_target(module, input, output):
             out["target"] = input[0][:, -1, neuron]
 
+        layers = get_layers(model)
         hooks = [
-            (model.gpt_neox.layers[layer].mlp.dense_4h_to_h, get_target),
+            (get_mlp_output_projection(layers[layer]), get_target),
         ]
 
         with add_fwd_hooks(hooks):
@@ -99,7 +100,7 @@ def neuron_runner(model, tokenizer, layer, neuron, check_retokenization=False):
                 output = model(inputs_embeds=inputs_embeds)
 
         out["logits"] = output.logits
-        out["target"][~good] = -torch.finfo(out["target"].dtype).max
+        out["target"][~good] = _invalid_target_like(out["target"], run)
         return out
 
     return run
@@ -126,8 +127,9 @@ def residual_runner(model, tokenizer, layer, vector, check_retokenization=False,
             )
             out["target"] = std_resid @ vector
 
+        layers = get_layers(model)
         hooks = [
-            (model.gpt_neox.layers[layer], get_target),
+            (layers[layer], get_target),
         ]
 
         with add_fwd_hooks(hooks):
@@ -137,7 +139,7 @@ def residual_runner(model, tokenizer, layer, vector, check_retokenization=False,
                 output = model(inputs_embeds=inputs_embeds)
 
         out["logits"] = output.logits
-        out["target"][~good] = -torch.finfo(out["target"].dtype).max
+        out["target"][~good] = _invalid_target_like(out["target"], run)
         return out
 
     run.minimize = minimize
@@ -262,24 +264,7 @@ def attention_entry_runner(
     token_idx,
     check_retokenization=False,
 ):
-    """
-    Returns a model-runner
-
-    Parameters
-    ----------
-    model
-        _description_
-    tokenizer
-        _description_
-    layer
-        _description_
-    head_idx
-        _description_
-    token_idx
-        _description_
-    check_retokenization, optional
-        _description_, by default False
-    """
+    """Return a runner targeting one last-token attention entry."""
 
     def run(input_ids=None, inputs_embeds=None):
         if input_ids is not None:
@@ -299,11 +284,12 @@ def attention_entry_runner(
             out["target"] = torch.where(
                 good,
                 attn_matrix[:, head_idx, -1, token_idx],
-                -torch.finfo(attn_matrix.dtype).max,
+                _invalid_target_like(attn_matrix[:, head_idx, -1, token_idx], run),
             )
 
+        layers = get_layers(model)
         hooks = [
-            (model.gpt_neox.layers[layer].attention, get_attention_entry),
+            (get_attention_module(layers[layer]), get_attention_entry),
         ]
 
         with add_fwd_hooks(hooks):

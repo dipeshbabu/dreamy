@@ -1,13 +1,63 @@
-# Fluent dreaming for language models.
+# Dreamy
 
-The code here implements the algorithms in the paper ["Fluent dreaming for language models"](https://arxiv.org/abs/2402.01702).
+Utilities for gradient-guided prompt optimization against language-model
+targets. This repository contains an EPO-style optimizer, target runners for
+logits, neurons, residual directions, and attention entries, plus small helpers
+for attribution and remote experiment execution.
 
-[Please also see the companion page that demonstrates using the code here.](https://confirmlabs.org/posts/dreamy.html)
+## Repository Contents
 
-[There is also a Colab version of the companion page.](https://colab.research.google.com/drive/1B0dM7du91BUkT7tSICXjKL7lrBAEdSa-?usp=sharing)
+- `dreamy.epo`: evolutionary prompt optimization and Pareto-frontier utilities.
+- `dreamy.runners`: target builders for logits, MLP neurons, residual directions,
+  and attention entries.
+- `dreamy.activations`: helpers for fitting residual-stream directions.
+- `dreamy.attribution`: token-resampling utilities for local attribution views.
+- `dreamy.experiment`: optional Modal/S3 experiment orchestration helpers.
 
-Modules:
-- `dreamy.epo`: The main EPO algorithm along with a few utilities for loading models and constructing Pareto frontiers.
-- `dreamy.attribution`: Code for creating causal attribution figures.
-- `dreamy.runners`: "Runners" for different optimization targets like neurons, output logits, etc.
-- `dreamy.experiment`: Code we used in writing the paper for running experiments on Modal and using S3 for storage.
+## Basic Usage
+
+Install dependencies with `uv`:
+
+```bash
+uv sync
+```
+
+```python
+from dreamy.epo import epo, load_model
+from dreamy.runners import logit_diff_runner
+
+model, tokenizer = load_model(model_size="70m")
+token_id = tokenizer.encode(" dog", add_special_tokens=False)[0]
+runner = logit_diff_runner(model, tokenizer, token_id, banned_text="dog")
+runner.minimize = True
+
+history = epo(
+    runner,
+    model,
+    tokenizer,
+    seq_len=12,
+    population_size=8,
+    iters=50,
+)
+```
+
+Pass `model_name` to `load_model` to use another compatible Hugging Face causal
+LM:
+
+```python
+model, tokenizer = load_model(model_name="microsoft/phi-2")
+```
+
+## Notes
+
+The optimizer assumes white-box access to model activations and input-token
+gradients. Keep manuscript drafts, generated PDFs, posters, and local result
+artifacts outside git; the ignore rules are set up for that workflow.
+
+## Verification
+
+Run the lightweight regression tests with:
+
+```bash
+uv run python -m unittest discover -s tests -v
+```

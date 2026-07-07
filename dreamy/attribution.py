@@ -9,7 +9,9 @@ def viz_simple(tokens, attributions, normalize=True, colormap="viridis"):
     # Normalize the attributions to [0, 1]
     if normalize:
         attributions -= attributions.min()
-        attributions /= attributions.max()
+        denom = attributions.max()
+        if denom > 0:
+            attributions /= denom
 
     # Create an HTML string with colored background for each token
     html_str = """
@@ -175,8 +177,10 @@ def resample(model, cache_run: Callable, input_ids, k=range(64), batch_size=256)
 
     seq_len = input_ids.shape[0]
     topk = (-output.token_grads).topk(k=max(k) + 1, dim=-1).indices[..., k]
-    targets = torch.empty(seq_len * len(k))
-    resamplings = torch.empty((seq_len, len(k), seq_len), dtype=torch.long)
+    targets = torch.empty(seq_len * len(k), device=input_ids.device)
+    resamplings = torch.empty(
+        (seq_len, len(k), seq_len), dtype=torch.long, device=input_ids.device
+    )
     resamplings[:, :, :] = input_ids.unsqueeze(0).unsqueeze(0)
     resamplings[
         torch.arange(seq_len, device=model.device)[None, :],
