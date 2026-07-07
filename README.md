@@ -62,7 +62,7 @@ uv run dreamy run \
   --spec examples/logit_spec.json \
   --texts examples/text_pool.txt \
   --out runs/example \
-  --methods epo random minscan gcg \
+  --methods epo random random_search minscan gcg \
   --seeds 0 1 2
 ```
 
@@ -86,7 +86,8 @@ uv run dreamy robustness \
   --spec examples/logit_spec.json \
   --records runs/example/candidates.csv \
   --out runs/example/robustness.csv \
-  --rows-out runs/example/robustness_summary.csv
+  --rows-out runs/example/robustness_rows.csv \
+  --summary-out runs/example/robustness_summary.csv
 ```
 
 Score continuation preferences for behavioral checks:
@@ -95,6 +96,43 @@ Score continuation preferences for behavioral checks:
 uv run dreamy behavior \
   --evals examples/behavior_evals.json \
   --out runs/example/behavior.csv
+```
+
+Generate target specs:
+
+```bash
+uv run dreamy generate-targets \
+  --out runs/specs/logits_and_neurons.json \
+  --tokens " dog" " answer" \
+  --layers 8-10 \
+  --neurons 0,32,64 \
+  --model-size 70m
+```
+
+Fit residual directions across layers and write a residual target spec:
+
+```bash
+uv run dreamy fit-directions \
+  --contrast examples/contrast_pairs.json \
+  --layers 0-6 \
+  --out-dir runs/directions \
+  --name eval_awareness \
+  --spec-out runs/specs/eval_awareness_residuals.json
+```
+
+Export a paper table from a summary CSV:
+
+```bash
+uv run dreamy latex-table \
+  --csv runs/example/summary.csv \
+  --out runs/example/summary_table.tex \
+  --columns target_name,method,best_target,best_target_xentropy
+```
+
+Write starter behavioral evaluation templates:
+
+```bash
+uv run dreamy behavior-templates --out runs/specs/behavior_evals.json
 ```
 
 For CPU only smoke runs, add:

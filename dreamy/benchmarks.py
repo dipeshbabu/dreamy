@@ -141,6 +141,49 @@ def random_token_baseline(
     )
 
 
+def random_search_baseline(
+    cache_run: Callable,
+    model,
+    tokenizer,
+    *,
+    target_name: str,
+    seed: int,
+    population_size: int = 16,
+    iters: int = 100,
+    explore_per_pop: int = 16,
+    seq_len: int = 24,
+    batch_size: int = 64,
+) -> list[CandidateRecord]:
+    n_prompts = population_size * max(1, iters) * max(1, explore_per_pop)
+    records = random_token_baseline(
+        cache_run,
+        model,
+        tokenizer,
+        target_name=target_name,
+        seed=seed,
+        n_prompts=n_prompts,
+        seq_len=seq_len,
+        batch_size=batch_size,
+    )
+    return [
+        CandidateRecord(
+            target_name=r.target_name,
+            method="random_search",
+            seed=r.seed,
+            text=r.text,
+            target=r.target,
+            xentropy=r.xentropy,
+            source="uniform_tokens_equal_budget",
+            extra={
+                "population_size": population_size,
+                "iters": iters,
+                "explore_per_pop": explore_per_pop,
+            },
+        )
+        for r in records
+    ]
+
+
 def minscan_baseline(
     cache_run: Callable,
     model,

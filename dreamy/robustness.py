@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Callable, Iterable
 
+import numpy as np
+
 from dreamy.benchmarks import score_texts
 from dreamy.results import CandidateRecord
 
@@ -94,6 +96,43 @@ def robustness_rows(records: Iterable[CandidateRecord]) -> list[dict]:
                 "xentropy": record.xentropy,
                 "delta_target": record.target - base_target,
                 "delta_xentropy": record.xentropy - base_xentropy,
+            }
+        )
+    return rows
+
+
+def robustness_summary_rows(
+    records: Iterable[CandidateRecord],
+    *,
+    target_tolerance: float = 0.0,
+) -> list[dict]:
+    grouped: dict[tuple[str, str, str], list[CandidateRecord]] = {}
+    for record in records:
+        base_method = record.extra.get("base_method", record.method.split(":", 1)[0])
+        variant = record.extra.get("variant", record.method)
+        grouped.setdefault((record.target_name, base_method, variant), []).append(record)
+
+    rows = []
+    for (target_name, base_method, variant), group in sorted(grouped.items()):
+        deltas = [
+            r.target - float(r.extra.get("base_target", r.target))
+            for r in group
+        ]
+        xe_deltas = [
+            r.xentropy - float(r.extra.get("base_xentropy", r.xentropy))
+            for r in group
+        ]
+        survived = [delta <= target_tolerance for delta in deltas]
+        rows.append(
+            {
+                "target_name": target_name,
+                "base_method": base_method,
+                "variant": variant,
+                "n": len(group),
+                "survival_rate": float(np.mean(survived)),
+                "median_delta_target": float(np.median(deltas)),
+                "median_delta_xentropy": float(np.median(xe_deltas)),
+                "worst_delta_target": float(np.max(deltas)),
             }
         )
     return rows

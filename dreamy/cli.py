@@ -8,17 +8,32 @@ from pathlib import Path
 
 import torch
 
-from dreamy.behavior import load_behavior_evals, score_continuations, write_behavior_rows
+from dreamy.behavior import (
+    load_behavior_evals,
+    score_continuations,
+    write_behavior_rows,
+    write_behavior_templates,
+)
 from dreamy.benchmarks import (
     epo_suppression_run,
     gcg_suppression_run,
     minscan_baseline,
+    random_search_baseline,
     random_token_baseline,
 )
+from dreamy.directions import fit_direction_sweep, top_direction_specs
 from dreamy.epo import load_model
+from dreamy.latex import rows_from_csv, rows_to_latex_table
 from dreamy.plotting import plot_method_bars, plot_scatter
 from dreamy.results import records_from_csv, records_to_csv, rows_to_csv, summarize_by_method
-from dreamy.robustness import evaluate_robustness, robustness_rows
+from dreamy.robustness import evaluate_robustness, robustness_rows, robustness_summary_rows
+from dreamy.target_generation import (
+    logit_specs,
+    neuron_specs,
+    parse_int_list,
+    residual_specs,
+    write_spec,
+)
 from dreamy.target_specs import build_runner_from_spec, target_name
 
 
@@ -97,6 +112,21 @@ def run_experiments(args) -> None:
                         target_name=name,
                         seed=seed,
                         n_prompts=args.random_prompts,
+                        seq_len=args.seq_len,
+                        batch_size=args.batch_size,
+                    )
+                )
+            if "random_search" in methods:
+                records.extend(
+                    random_search_baseline(
+                        runner,
+                        model,
+                        tokenizer,
+                        target_name=name,
+                        seed=seed,
+                        population_size=args.population_size,
+                        iters=args.iters,
+                        explore_per_pop=args.explore_per_pop,
                         seq_len=args.seq_len,
                         batch_size=args.batch_size,
                     )
@@ -180,6 +210,14 @@ def robustness(args) -> None:
         )
     records_to_csv(robust_records, args.out)
     rows_to_csv(robustness_rows(robust_records), args.rows_out)
+    if args.summary_out:
+        rows_to_csv(
+            robustness_summary_rows(
+                robust_records,
+                target_tolerance=args.target_tolerance,
+            ),
+            args.summary_out,
+        )
 
 
 def behavior(args) -> None:
@@ -200,6 +238,93 @@ def behavior(args) -> None:
     evals = load_behavior_evals(args.evals)
     rows = score_continuations(model, tokenizer, evals)
     write_behavior_rows(rows, args.out)
+
+
+def generate_targets(args) -> None:
+    targets = []
+    if args.tokens:
+        targets.extend(logit_specs(args.tokens, prefix=args.logit_prefix))
+    if args.token_file:
+        targets.extend(logit_specs(_load_texts(args.token_file), prefix=args.logit_prefix))
+    if args.layers and args.neurons:
+        targets.extend(
+            neuron_specs(
+                parse_int_list(args.layers),
+                parse_int_list(args.neurons),
+                prefix=args.neuron_prefix,
+            )
+        )
+    if args.vector:
+        layer_by_file = None
+        if args.vector_layers:
+            layer_by_file = {}
+            for part in args.vector_layers.split(","):
+                if part.strip():
+                    name, layer = part.split("=", 1)
+                    layer_by_file[name.strip()] = int(layer)
+        targets.extend(
+            residual_specs(
+                args.vector,
+                layer_by_file=layer_by_file,
+                default_layer=args.default_vector_layer,
+                prefix=args.residual_prefix,
+            )
+        )
+    write_spec(
+        targets,
+        args.out,
+        model_name=args.model_name,
+        model_size=args.model_size,
+        texts_path=args.texts_path,
+    )
+
+
+def fit_directions(args) -> None:
+    dtype = {
+        "float16": torch.float16,
+        "bfloat16": torch.bfloat16,
+        "float32": torch.float32,
+    }[args.torch_dtype]
+    model, tokenizer = load_model(
+        model_size=args.model_size,
+        model_name=args.model_name,
+        tokenizer_name=args.tokenizer_name,
+        attn_implementation=args.attn_implementation,
+        device_map=args.device_map,
+        torch_dtype=dtype,
+    )
+    rows = fit_direction_sweep(
+        model,
+        tokenizer,
+        args.contrast,
+        parse_int_list(args.layers),
+        args.out_dir,
+        name=args.name,
+        pooling=args.pooling,
+        max_len=args.max_length,
+    )
+    if args.spec_out:
+        write_spec(
+            top_direction_specs(rows, top_k=args.top_k),
+            args.spec_out,
+            model_name=args.model_name,
+            model_size=args.model_size,
+            texts_path=args.texts_path,
+        )
+
+
+def latex_table(args) -> None:
+    rows_to_latex_table(
+        rows_from_csv(args.csv),
+        args.out,
+        columns=args.columns.split(",") if args.columns else None,
+        caption=args.caption or "",
+        label=args.label or "",
+    )
+
+
+def behavior_templates(args) -> None:
+    write_behavior_templates(args.out)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -250,6 +375,8 @@ def build_parser() -> argparse.ArgumentParser:
     robust.add_argument("--records", required=True)
     robust.add_argument("--out", required=True)
     robust.add_argument("--rows-out", required=True)
+    robust.add_argument("--summary-out")
+    robust.add_argument("--target-tolerance", type=float, default=0.0)
     robust.add_argument("--top-n", type=int, default=10)
     robust.add_argument("--model-size", default="70m")
     robust.add_argument("--model-name")
@@ -278,6 +405,57 @@ def build_parser() -> argparse.ArgumentParser:
         default="float16",
     )
     beh.set_defaults(func=behavior)
+
+    gen = sub.add_parser("generate-targets", help="write target specs")
+    gen.add_argument("--out", required=True)
+    gen.add_argument("--tokens", nargs="*")
+    gen.add_argument("--token-file")
+    gen.add_argument("--layers")
+    gen.add_argument("--neurons")
+    gen.add_argument("--vector", nargs="*")
+    gen.add_argument("--vector-layers")
+    gen.add_argument("--default-vector-layer", type=int)
+    gen.add_argument("--logit-prefix", default="logit")
+    gen.add_argument("--neuron-prefix", default="neuron")
+    gen.add_argument("--residual-prefix", default="residual")
+    gen.add_argument("--model-name")
+    gen.add_argument("--model-size")
+    gen.add_argument("--texts-path")
+    gen.set_defaults(func=generate_targets)
+
+    dirs = sub.add_parser("fit-directions", help="fit residual directions across layers")
+    dirs.add_argument("--contrast", required=True)
+    dirs.add_argument("--layers", required=True)
+    dirs.add_argument("--out-dir", required=True)
+    dirs.add_argument("--name", required=True)
+    dirs.add_argument("--spec-out")
+    dirs.add_argument("--top-k", type=int, default=3)
+    dirs.add_argument("--texts-path")
+    dirs.add_argument("--pooling", choices=["last", "mean"], default="last")
+    dirs.add_argument("--max-length", type=int, default=256)
+    dirs.add_argument("--model-size", default="70m")
+    dirs.add_argument("--model-name")
+    dirs.add_argument("--tokenizer-name")
+    dirs.add_argument("--attn-implementation", default=None)
+    dirs.add_argument("--device-map", default="cuda")
+    dirs.add_argument(
+        "--torch-dtype",
+        choices=["float16", "bfloat16", "float32"],
+        default="float16",
+    )
+    dirs.set_defaults(func=fit_directions)
+
+    table = sub.add_parser("latex-table", help="convert a CSV summary to a LaTeX table")
+    table.add_argument("--csv", required=True)
+    table.add_argument("--out", required=True)
+    table.add_argument("--columns")
+    table.add_argument("--caption")
+    table.add_argument("--label")
+    table.set_defaults(func=latex_table)
+
+    beh_tpl = sub.add_parser("behavior-templates", help="write starter behavioral eval templates")
+    beh_tpl.add_argument("--out", required=True)
+    beh_tpl.set_defaults(func=behavior_templates)
     return parser
 
 
