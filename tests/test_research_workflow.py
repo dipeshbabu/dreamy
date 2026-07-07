@@ -4,7 +4,9 @@ import unittest
 from pathlib import Path
 
 import numpy as np
+import torch
 
+from prompt_suppression.activations.probes import _to_numpy_float32
 from prompt_suppression.directions import mean_difference_direction, projection_gap, top_direction_specs
 from prompt_suppression.latex import rows_to_latex_table
 from prompt_suppression.results import CandidateRecord
@@ -47,6 +49,14 @@ class ResearchWorkflowTests(unittest.TestCase):
             top_k=1,
         )
         self.assertEqual(specs[0]["layer"], 1)
+
+    def test_bfloat16_states_convert_to_numpy_float32(self):
+        tensor = torch.ones((2, 3), dtype=torch.bfloat16)
+
+        array = _to_numpy_float32(tensor)
+
+        self.assertEqual(array.dtype, np.float32)
+        self.assertEqual(array.shape, (2, 3))
 
     def test_robustness_summary(self):
         rows = robustness_summary_rows(

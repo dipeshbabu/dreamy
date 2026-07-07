@@ -6,6 +6,10 @@ from prompt_suppression.epo import ensure_padding_token
 from prompt_suppression.model_utils import get_layers
 
 
+def _to_numpy_float32(tensor):
+    return tensor.detach().float().cpu().numpy()
+
+
 @torch.no_grad()
 def collect_residual_states(model, hook_layer: int, tok, texts, max_len=256, pooling="last"):
     outs = []
@@ -28,7 +32,7 @@ def collect_residual_states(model, hook_layer: int, tok, texts, max_len=256, poo
             H = (hk.h * mask).sum(dim=1) / mask.sum(dim=1).clamp_min(1)
         else:
             raise ValueError("pooling must be 'last' or 'mean'")
-        outs.append(H.detach().cpu().numpy())  # [B, d]
+        outs.append(_to_numpy_float32(H))  # [B, d]
     handle.remove()
     return np.vstack(outs)  # [N, d]
 
@@ -49,7 +53,7 @@ def collect_residual_means(model, hook_layer: int, tok, texts, max_len=256):
         _ = model(**ids)
         mask = ids["attention_mask"].to(hk.h.dtype).unsqueeze(-1)
         H = (hk.h * mask).sum(dim=1) / mask.sum(dim=1).clamp_min(1)
-        H = H.detach().cpu().numpy()
+        H = _to_numpy_float32(H)
         outs.append(H)
     handle.remove()
     return np.vstack(outs)  # [N, d]
