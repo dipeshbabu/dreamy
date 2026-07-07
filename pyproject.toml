@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 authors = [
-  { name = "Dreamy contributors" }
+  { name = "Dipesh Babu" }
 ]
 dependencies = [
   "accelerate>=0.27",
