@@ -20,11 +20,19 @@ class ResearchWorkflowTests(unittest.TestCase):
         targets = logit_specs([" dog"]) + neuron_specs([1], [2])
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "spec.json"
-            write_spec(targets, path, model_size="70m")
+            write_spec(
+                targets,
+                path,
+                model_size="70m",
+                attn_implementation="eager",
+                device_map="cuda",
+            )
             data = json.loads(path.read_text())
 
         self.assertEqual(len(data["targets"]), 2)
         self.assertEqual(data["model_size"], "70m")
+        self.assertEqual(data["attn_implementation"], "eager")
+        self.assertEqual(data["device_map"], "cuda")
 
     def test_direction_math_and_top_specs(self):
         a = np.array([[2.0, 0.0], [2.0, 1.0]])

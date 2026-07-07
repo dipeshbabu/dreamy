@@ -78,6 +78,8 @@ def write_spec(
     model_name: str | None = None,
     model_size: str | None = None,
     texts_path: str | None = None,
+    attn_implementation: str | None = None,
+    device_map: str | None = None,
 ) -> None:
     spec = {"targets": list(targets)}
     if model_name:
@@ -86,6 +88,10 @@ def write_spec(
         spec["model_size"] = model_size
     if texts_path:
         spec["texts_path"] = texts_path
+    if attn_implementation:
+        spec["attn_implementation"] = attn_implementation
+    if device_map:
+        spec["device_map"] = device_map
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(spec, indent=2) + "\n", encoding="utf-8")

@@ -32,6 +32,7 @@ Gemma 2 2B logit and neuron targets:
 uv run prompt-suppression generate-targets \
   --out runs/specs/gemma2_logits_neurons.json \
   --model-name google/gemma-2-2b \
+  --attn-implementation eager \
   --texts-path examples/text_pool.txt \
   --tokens " dog" " answer" " safe" " grade" " test" \
   --layers 6,10,14,18,22 \
@@ -164,6 +165,7 @@ uv run prompt-suppression run \
   --out runs/gemma2/logits_neurons \
   --methods epo gcg random random_search minscan \
   --seeds 0 1 2 3 4 \
+  --attn-implementation eager \
   --torch-dtype bfloat16 \
   --seq-len 32 \
   --population-size 24 \
@@ -182,6 +184,7 @@ uv run prompt-suppression run \
   --out runs/gemma2/eval_awareness_residuals \
   --methods epo gcg random random_search minscan \
   --seeds 0 1 2 3 4 \
+  --attn-implementation eager \
   --torch-dtype bfloat16 \
   --seq-len 32 \
   --population-size 24 \
@@ -200,6 +203,7 @@ uv run prompt-suppression run \
   --out runs/gemma2/casing_residuals \
   --methods epo gcg random random_search minscan \
   --seeds 0 1 2 3 4 \
+  --attn-implementation eager \
   --torch-dtype bfloat16 \
   --seq-len 32 \
   --population-size 24 \
@@ -251,6 +255,7 @@ uv run prompt-suppression robustness \
   --rows-out runs/gemma2/logits_neurons/robustness_rows.csv \
   --summary-out runs/gemma2/logits_neurons/robustness_summary.csv \
   --top-n 10 \
+  --attn-implementation eager \
   --torch-dtype bfloat16
 ```
 

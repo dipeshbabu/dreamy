@@ -276,6 +276,8 @@ def generate_targets(args) -> None:
         model_name=args.model_name,
         model_size=args.model_size,
         texts_path=args.texts_path,
+        attn_implementation=args.attn_implementation,
+        device_map=args.device_map,
     )
 
 
@@ -310,6 +312,8 @@ def fit_directions(args) -> None:
             model_name=args.model_name,
             model_size=args.model_size,
             texts_path=args.texts_path,
+            attn_implementation=args.attn_implementation,
+            device_map=args.device_map,
         )
 
 
@@ -421,6 +425,8 @@ def build_parser() -> argparse.ArgumentParser:
     gen.add_argument("--model-name")
     gen.add_argument("--model-size")
     gen.add_argument("--texts-path")
+    gen.add_argument("--attn-implementation")
+    gen.add_argument("--device-map")
     gen.set_defaults(func=generate_targets)
 
     dirs = sub.add_parser("fit-directions", help="fit residual directions across layers")
