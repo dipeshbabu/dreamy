@@ -65,6 +65,9 @@ model, tokenizer = load_model(
 
 ## Reproducible experiment workflow
 
+For the full paper experiment sequence, use [docs/experiments.md](docs/experiments.md).
+The commands below are minimal examples to check the workflow.
+
 Run a suppression experiment from a JSON target spec:
 
 ```bash
