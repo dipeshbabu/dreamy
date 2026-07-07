@@ -1,0 +1,13 @@
+{
+  "model_name": "google/gemma-2-2b",
+  "attn_implementation": "eager",
+  "targets": [
+    {
+      "name": "gemma_example_logit_dog",
+      "type": "logit",
+      "token_text": " dog",
+      "banned_text": "dog",
+      "minimize": true
+    }
+  ]
+}

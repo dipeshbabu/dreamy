@@ -53,6 +53,16 @@ LM:
 model, tokenizer = load_model(model_name="microsoft/phi-2")
 ```
 
+For Gemma 2 2B:
+
+```python
+model, tokenizer = load_model(
+    model_name="google/gemma-2-2b",
+    attn_implementation="eager",
+    torch_dtype=torch.bfloat16,
+)
+```
+
 ## Reproducible experiment workflow
 
 Run a suppression experiment from a JSON target spec:
@@ -65,6 +75,22 @@ uv run prompt-suppression run \
   --methods epo random random_search minscan gcg \
   --seeds 0 1 2
 ```
+
+Run the same workflow on Gemma 2 2B:
+
+```bash
+uv run prompt-suppression run \
+  --spec examples/gemma_logit_spec.json \
+  --texts examples/text_pool.txt \
+  --out runs/gemma_example \
+  --methods epo random random_search minscan gcg \
+  --seeds 0 1 2 \
+  --torch-dtype bfloat16
+```
+
+Gemma models may require a Hugging Face token with Google model access enabled.
+If loading fails with an authorization error, accept the model terms on Hugging
+Face and run `huggingface-cli login`.
 
 The command writes:
 
