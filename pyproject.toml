@@ -17,6 +17,9 @@ dependencies = [
   "transformers>=4.40",
 ]
 
+[project.scripts]
+dreamy = "dreamy.cli:main"
+
 [project.optional-dependencies]
 remote = [
   "boto3>=1.34",

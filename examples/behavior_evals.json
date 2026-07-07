@@ -1,0 +1,10 @@
+[
+  {
+    "id": "concise_vs_verbose",
+    "prompt": "Answer the question briefly.\nQuestion: What is photosynthesis?\nAnswer:",
+    "continuations": {
+      "concise": " Photosynthesis is how plants use light to make sugar from carbon dioxide and water.",
+      "verbose": " Photosynthesis is a complex and multifaceted biological process that can be understood through many interconnected stages and broader ecological implications."
+    }
+  }
+]

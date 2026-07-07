@@ -34,6 +34,8 @@ def load_model(
     tokenizer_name=None,
     requires_grad=False,
     attn_implementation="flash_attention_2",
+    device_map="cuda",
+    torch_dtype=torch.float16,
 ):
     """Load a causal LM ready for EPO.
 
@@ -43,9 +45,9 @@ def load_model(
     model_name = model_name or f"EleutherAI/pythia-{model_size}-deduped"
     model_kwargs = dict(
         low_cpu_mem_usage=True,
-        torch_dtype=torch.float16,
+        torch_dtype=torch_dtype,
         use_cache=False,
-        device_map="cuda",
+        device_map=device_map,
     )
     if attn_implementation is not None:
         model_kwargs["attn_implementation"] = attn_implementation

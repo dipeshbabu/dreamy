@@ -1,0 +1,12 @@
+{
+  "model_size": "70m",
+  "targets": [
+    {
+      "name": "example_logit_dog",
+      "type": "logit",
+      "token_text": " dog",
+      "banned_text": "dog",
+      "minimize": true
+    }
+  ]
+}

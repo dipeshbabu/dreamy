@@ -10,6 +10,11 @@ for attribution and remote experiment execution.
 - `dreamy.epo`: evolutionary prompt optimization and Pareto-frontier utilities.
 - `dreamy.runners`: target builders for logits, MLP neurons, residual directions,
   and attention entries.
+- `dreamy.benchmarks`: EPO, GCG, random, and natural text scan baselines.
+- `dreamy.results`: candidate records, operating point summaries, and CSV IO.
+- `dreamy.robustness`: deterministic prompt variant checks.
+- `dreamy.plotting`: standard scatter, Pareto, bar, and robustness figures.
+- `dreamy.behavior`: continuation log probability scoring for behavioral tests.
 - `dreamy.activations`: helpers for fitting residual-stream directions.
 - `dreamy.attribution`: token-resampling utilities for local attribution views.
 - `dreamy.experiment`: optional Modal/S3 experiment orchestration helpers.
@@ -46,6 +51,56 @@ LM:
 
 ```python
 model, tokenizer = load_model(model_name="microsoft/phi-2")
+```
+
+## Reproducible experiment workflow
+
+Run a suppression experiment from a JSON target spec:
+
+```bash
+uv run dreamy run \
+  --spec examples/logit_spec.json \
+  --texts examples/text_pool.txt \
+  --out runs/example \
+  --methods epo random minscan gcg \
+  --seeds 0 1 2
+```
+
+The command writes:
+
+- `runs/example/candidates.csv`: every scored prompt from search and baselines.
+- `runs/example/summary.csv`: method level operating point summaries.
+
+Generate standard figures:
+
+```bash
+uv run dreamy plot \
+  --records runs/example/candidates.csv \
+  --out-dir runs/example/figures
+```
+
+Evaluate deterministic robustness variants for the best prompts:
+
+```bash
+uv run dreamy robustness \
+  --spec examples/logit_spec.json \
+  --records runs/example/candidates.csv \
+  --out runs/example/robustness.csv \
+  --rows-out runs/example/robustness_summary.csv
+```
+
+Score continuation preferences for behavioral checks:
+
+```bash
+uv run dreamy behavior \
+  --evals examples/behavior_evals.json \
+  --out runs/example/behavior.csv
+```
+
+For CPU only smoke runs, add:
+
+```bash
+--device-map cpu --torch-dtype float32
 ```
 
 ## Notes
