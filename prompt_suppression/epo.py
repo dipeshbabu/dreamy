@@ -269,7 +269,7 @@ def epo(
             X.max().item(),
         )
     elif callback is False:
-        callback = lambda *x: True
+        callback = lambda *args, **kwargs: False
 
     #### history and initial_ids ####
     if history is not None:
