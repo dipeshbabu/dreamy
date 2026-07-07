@@ -23,9 +23,22 @@ def combine_score(target, xentropy, X, minimize: bool):
     return feat[None, :] - X[:, None] * xentropy[None, :]
 
 
+def ensure_padding_token(tokenizer):
+    """Ensure batching with padding works for decoder-only tokenizers."""
+    added = False
+    if tokenizer.pad_token is None:
+        if tokenizer.eos_token is not None:
+            tokenizer.pad_token = tokenizer.eos_token
+        else:
+            tokenizer.add_special_tokens({"pad_token": "[PAD]"})
+            added = True
+    return tokenizer, added
+
+
 def load_tokenizer(model_name="EleutherAI/pythia-70m-deduped"):
     """Load the tokenizer used for prompt optimization."""
-    return transformers.AutoTokenizer.from_pretrained(model_name)
+    tokenizer, _ = ensure_padding_token(transformers.AutoTokenizer.from_pretrained(model_name))
+    return tokenizer
 
 
 def load_model(
@@ -64,7 +77,11 @@ def load_model(
         for name, param in model.named_parameters():
             param.requires_grad_(False)
 
-    tokenizer = load_tokenizer(tokenizer_name or model_name)
+    tokenizer, added_tokens = ensure_padding_token(
+        transformers.AutoTokenizer.from_pretrained(tokenizer_name or model_name)
+    )
+    if added_tokens:
+        model.resize_token_embeddings(len(tokenizer))
     return model, tokenizer
 
 

@@ -2,12 +2,14 @@ import torch
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 
+from prompt_suppression.epo import ensure_padding_token
 from prompt_suppression.model_utils import get_layers
 
 
 @torch.no_grad()
 def collect_residual_states(model, hook_layer: int, tok, texts, max_len=256, pooling="last"):
     outs = []
+    tok, _ = ensure_padding_token(tok)
 
     def hk(mod, inp, out):
         hidden = out[0] if isinstance(out, tuple) else out
@@ -34,6 +36,7 @@ def collect_residual_states(model, hook_layer: int, tok, texts, max_len=256, poo
 @torch.no_grad()
 def collect_residual_means(model, hook_layer: int, tok, texts, max_len=256):
     outs = []
+    tok, _ = ensure_padding_token(tok)
 
     def hk(mod, inp, out):
         hidden = out[0] if isinstance(out, tuple) else out

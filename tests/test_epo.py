@@ -3,7 +3,18 @@ import unittest
 import numpy as np
 import torch
 
-from prompt_suppression.epo import History, build_pareto_frontier, combine_score
+from prompt_suppression.epo import (
+    History,
+    build_pareto_frontier,
+    combine_score,
+    ensure_padding_token,
+)
+
+
+class DummyPadTokenizer:
+    pad_token = None
+    eos_token = "<eos>"
+
 
 
 class DummyTokenizer:
@@ -12,6 +23,14 @@ class DummyTokenizer:
 
 
 class EpoObjectiveTests(unittest.TestCase):
+    def test_ensure_padding_token_uses_eos_when_available(self):
+        tokenizer = DummyPadTokenizer()
+
+        tokenizer, added = ensure_padding_token(tokenizer)
+
+        self.assertEqual(tokenizer.pad_token, "<eos>")
+        self.assertFalse(added)
+
     def test_combine_score_prefers_lower_target_in_minimize_mode(self):
         target = torch.tensor([1.0, -2.0])
         xentropy = torch.tensor([0.5, 0.5])
